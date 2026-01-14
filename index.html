@@ -18,9 +18,10 @@
 
       --r: 26px;
 
-      /* Cube */
-      --cube: 380px;
+      /* Cube (responsive) */
+      --cube: clamp(220px, 72vw, 380px);
       --half: calc(var(--cube) / 2);
+      --halo: clamp(16px, 5vw, 26px);
 
       /* Pastel faces */
       --c1:#cfe3ff;  --a1:#2b6fff; /* blue */
@@ -231,13 +232,14 @@
       background:
         radial-gradient(900px 340px at 50% 0%, rgba(43,111,255,.10), transparent 60%),
         rgba(255,255,255,.60);
-      padding:18px;
+      padding: clamp(10px, 3vw, 18px);
       display:grid;
       place-items:center;
     }
 
     .scene{
-      width: min(720px, 92vw);
+      width: 100%;
+      max-width: 720px;
       aspect-ratio: 1/1;
       display:grid;
       place-items:center;
@@ -247,12 +249,15 @@
     .persp{
       width: var(--cube);
       height: var(--cube);
+      max-width: 100%;
+      max-height: 100%;
       position:relative;
       perspective: 1200px;
     }
 
     .cube{
       position:absolute; inset:0;
+      touch-action: manipulation;
       transform-style: preserve-3d;
       transition: transform 1050ms cubic-bezier(.18,.92,.18,1);
       will-change: transform;
@@ -261,7 +266,7 @@
     }
 
     .halo{
-      position:absolute; inset:-26px;
+      position:absolute; inset: calc(var(--halo) * -1);
       border-radius: 54px;
       background:
         radial-gradient(320px 230px at 20% 20%, rgba(43,111,255,.22), transparent 62%),
@@ -434,8 +439,10 @@
     .note b{font-weight:900}
 
     @media (max-width: 560px){
-      :root{ --cube: 310px; }
-      .scene{ width: min(720px, 96vw); }
+      .wrap{padding: 14px 12px 34px;}
+      .pad{padding: 14px 14px;}
+      .head{padding: 12px 12px 14px;}
+      .stage{padding: 10px;}
       .bigQ{ font-size: 24px; }
       .h{ font-size: 30px; }
     }
