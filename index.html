@@ -1,0 +1,746 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Кубик Блума</title>
+  <style>
+    :root{
+      --ink:#0b1220;
+      --muted: rgba(11,18,32,.64);
+
+      --surface: rgba(255,255,255,.86);
+      --surface2: rgba(255,255,255,.92);
+      --border: rgba(11,18,32,.10);
+
+      --shadow: 0 20px 70px rgba(2,6,23,.16);
+      --shadow2: 0 12px 32px rgba(2,6,23,.12);
+
+      --r: 26px;
+
+      /* Cube */
+      --cube: 380px;
+      --half: calc(var(--cube) / 2);
+
+      /* Pastel faces */
+      --c1:#cfe3ff;  --a1:#2b6fff; /* blue */
+      --c2:#c8f7dd;  --a2:#16a34a; /* green */
+      --c3:#ffe7b8;  --a3:#f59e0b; /* amber */
+      --c4:#e6ddff;  --a4:#7c3aed; /* violet */
+      --c5:#ffd2df;  --a5:#e11d48; /* rose */
+      --c6:#bff3ff;  --a6:#0891b2; /* cyan */
+
+      --activeColor: var(--c1);
+      --activeAccent: var(--a1);
+
+      --h1: 16px;
+      --h2: 28px;
+      --h3: 20px;
+      --body: 14px;
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial;
+      font-weight: 400;
+      color:var(--ink);
+      overflow-x:hidden;
+
+      /* light blue base + rainbow glow */
+      background:
+        radial-gradient(1200px 680px at 10% 10%, rgba(43,111,255,.28), transparent 60%),
+        radial-gradient(1200px 680px at 90% 15%, rgba(22,163,74,.22), transparent 60%),
+        radial-gradient(1200px 680px at 22% 92%, rgba(245,158,11,.22), transparent 62%),
+        radial-gradient(1200px 680px at 88% 88%, rgba(124,58,237,.22), transparent 62%),
+        radial-gradient(1200px 680px at 55% 55%, rgba(225,29,72,.14), transparent 65%),
+        linear-gradient(180deg, #eef8ff, #eafcff 46%, #fffaf0);
+    }
+
+    .pattern{
+      position:fixed; inset:0; pointer-events:none; z-index:-1;
+      opacity:.55;
+      background:
+        radial-gradient(10px 10px at 16% 20%, rgba(43,111,255,.22), transparent 60%),
+        radial-gradient(10px 10px at 30% 64%, rgba(8,145,178,.16), transparent 60%),
+        radial-gradient(10px 10px at 78% 24%, rgba(22,163,74,.16), transparent 60%),
+        radial-gradient(10px 10px at 86% 72%, rgba(225,29,72,.14), transparent 60%),
+        radial-gradient(10px 10px at 54% 42%, rgba(245,158,11,.14), transparent 60%);
+      background-size: 520px 520px;
+      filter: blur(.15px);
+    }
+
+    .wrap{max-width:1180px;margin:0 auto;padding:18px 16px 44px}
+
+    header{
+      position:relative;
+      border-radius: calc(var(--r) + 8px);
+      overflow:hidden;
+      box-shadow: var(--shadow);
+      border:1px solid rgba(255,255,255,.55);
+      background: var(--surface);
+      backdrop-filter: blur(10px);
+    }
+    .topbar{
+      height:10px;
+      background: linear-gradient(90deg,
+        rgba(43,111,255,.95),
+        rgba(8,145,178,.95),
+        rgba(22,163,74,.95),
+        rgba(245,158,11,.95),
+        rgba(124,58,237,.95),
+        rgba(225,29,72,.95)
+      );
+    }
+    .head{
+      display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;
+      padding:14px 16px 16px;
+    }
+    .brand{display:flex;align-items:center;gap:12px}
+    .logo{
+      width:52px;height:52px;border-radius:18px;
+      display:grid;place-items:center;
+      font-weight: 650;
+      letter-spacing:-.01em;
+      color:#0b1220;
+      border:1px solid rgba(11,18,32,.10);
+      box-shadow: var(--shadow2);
+      background:
+        radial-gradient(120px 90px at 20% 20%, rgba(43,111,255,.35), transparent 60%),
+        radial-gradient(120px 90px at 82% 28%, rgba(22,163,74,.26), transparent 60%),
+        radial-gradient(140px 100px at 55% 88%, rgba(245,158,11,.22), transparent 62%),
+        rgba(255,255,255,.95);
+      user-select:none;
+    }
+    .brand h1{
+      margin:0;
+      font-size:var(--h1);
+      font-weight: 700;
+      letter-spacing:-.01em;
+    }
+
+    .chips{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+    .chip{
+      font-size:12px;
+      padding:7px 10px;
+      border-radius:999px;
+      border:1px solid rgba(11,18,32,.10);
+      background: rgba(255,255,255,.92);
+      color: rgba(11,18,32,.72);
+      white-space:nowrap;
+      font-weight: 500;
+    }
+
+    /* Screens */
+    .screen{ display:none; }
+    .screen.active{ display:block; }
+
+    main{margin-top:16px}
+    .grid{display:grid;grid-template-columns:1fr;gap:14px}
+    @media (min-width:980px){ .grid{grid-template-columns: 1.25fr .75fr; gap:18px;} }
+
+    .card{
+      background: linear-gradient(180deg, var(--surface2), rgba(255,255,255,.82));
+      border:1px solid rgba(255,255,255,.55);
+      border-radius: calc(var(--r) + 8px);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+      overflow:hidden;
+      min-height:0;
+      position:relative;
+    }
+    .card::before{
+      content:"";
+      position:absolute; inset:0;
+      border-radius: inherit;
+      pointer-events:none;
+      border:1px solid rgba(11,18,32,.08);
+      mix-blend-mode: multiply;
+    }
+    .pad{padding:16px 18px}
+
+    .title{
+      margin:0;
+      font-size:var(--h2);
+      font-weight: 700;
+      letter-spacing:-.015em;
+    }
+
+    .controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px}
+
+    .btn{
+      border:1px solid rgba(11,18,32,.10);
+      background: rgba(255,255,255,.96);
+      color:var(--ink);
+      padding:12px 14px;
+      border-radius: 16px;
+      font-size:14px;
+      font-weight: 700;
+      cursor:pointer;
+      display:inline-flex;align-items:center;gap:10px;
+      transition: transform .08s ease, box-shadow .18s ease, background .18s ease, filter .18s ease, opacity .18s ease;
+      user-select:none;
+    }
+    .btn:hover{ background:#fff; box-shadow: 0 14px 26px rgba(2,6,23,.12); }
+    .btn:active{ transform: translateY(1px); }
+    .btn:disabled{opacity:.65;cursor:not-allowed}
+
+    .btn.primary{
+      border:none;
+      color:#fff;
+      font-weight: 800;
+      background: linear-gradient(135deg,
+        color-mix(in srgb, var(--activeAccent) 92%, white),
+        color-mix(in srgb, var(--activeAccent) 35%, #22c55e)
+      );
+      box-shadow:
+        0 16px 32px rgba(2,6,23,.16),
+        0 0 0 8px color-mix(in srgb, var(--activeColor) 70%, transparent);
+    }
+
+    /* Setup form */
+    .formRow{ display:grid; gap:8px; margin-top: 12px; }
+    label{ font-size: 13px; color: rgba(11,18,32,.68); font-weight: 650; }
+    input, textarea{
+      width:100%;
+      font: inherit;
+      padding: 12px 14px;
+      border-radius: 16px;
+      border:1px solid rgba(11,18,32,.14);
+      background: rgba(255,255,255,.92);
+      outline:none;
+      box-shadow: inset 0 2px 0 rgba(255,255,255,.6);
+    }
+    textarea{ min-height: 74px; resize: vertical; }
+    input:focus, textarea:focus{
+      border-color: color-mix(in srgb, var(--activeAccent) 55%, rgba(11,18,32,.12));
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--activeColor) 75%, transparent), inset 0 2px 0 rgba(255,255,255,.6);
+    }
+    .help{
+      margin-top: 10px;
+      color: rgba(11,18,32,.64);
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    /* Cube stage */
+    .stage{
+      border-top:1px solid rgba(11,18,32,.08);
+      background:
+        radial-gradient(900px 340px at 50% 0%, rgba(43,111,255,.10), transparent 60%),
+        rgba(255,255,255,.60);
+      padding:18px;
+      display:grid;
+      place-items:center;
+    }
+
+    .scene{
+      width: min(720px, 92vw);
+      aspect-ratio: 1/1;
+      display:grid;
+      place-items:center;
+      position:relative;
+    }
+
+    .persp{
+      width: var(--cube);
+      height: var(--cube);
+      position:relative;
+      perspective: 1200px;
+    }
+
+    .cube{
+      position:absolute; inset:0;
+      transform-style: preserve-3d;
+      transition: transform 1050ms cubic-bezier(.18,.92,.18,1);
+      will-change: transform;
+      cursor:pointer;
+      user-select:none;
+    }
+
+    .halo{
+      position:absolute; inset:-26px;
+      border-radius: 54px;
+      background:
+        radial-gradient(320px 230px at 20% 20%, rgba(43,111,255,.22), transparent 62%),
+        radial-gradient(320px 230px at 82% 22%, rgba(22,163,74,.18), transparent 62%),
+        radial-gradient(340px 250px at 55% 85%, rgba(245,158,11,.16), transparent 66%),
+        radial-gradient(360px 270px at 75% 80%, rgba(225,29,72,.14), transparent 68%),
+        radial-gradient(360px 270px at 35% 70%, rgba(124,58,237,.14), transparent 70%);
+      filter: blur(16px);
+      opacity:.85;
+      pointer-events:none;
+      z-index:0;
+    }
+
+    /* Toss (подброс) */
+    .cube.toss{
+      animation: toss 820ms cubic-bezier(.18,.92,.18,1);
+    }
+    @keyframes toss{
+      0%   { transform: translateY(0) rotateX(var(--rx)) rotateY(var(--ry)); }
+      35%  { transform: translateY(-72px) rotateX(calc(var(--rx) + 160deg)) rotateY(calc(var(--ry) + 180deg)); }
+      70%  { transform: translateY(-28px) rotateX(calc(var(--rx) + 280deg)) rotateY(calc(var(--ry) + 360deg)); }
+      100% { transform: translateY(0) rotateX(calc(var(--rx) + 360deg)) rotateY(calc(var(--ry) + 540deg)); }
+    }
+
+    .face{
+      position:absolute; inset:0;
+      border-radius: 34px;
+      border:1px solid rgba(11,18,32,.12);
+      box-shadow:
+        inset 0 0 0 1px rgba(255,255,255,.86),
+        0 16px 34px rgba(2,6,23,.12);
+      backface-visibility:hidden;
+      padding:14px;
+      display:flex;
+      align-items:stretch;
+      transition: box-shadow 250ms ease, outline-color 250ms ease;
+    }
+
+    .inner{
+      width:100%;
+      border-radius: 22px;
+      border:1px solid rgba(11,18,32,.10);
+      background: rgba(255,255,255,.78);
+      padding:14px 14px 12px;
+      display:flex;
+      flex-direction:column;
+      justify-content:center;
+      align-items:center;
+      text-align:center;
+      gap:10px;
+      position:relative;
+      overflow:hidden;
+    }
+    .inner::after{
+      content:"";
+      position:absolute; inset:-100px -52px auto auto;
+      width:250px; height:250px;
+      background: radial-gradient(circle at 35% 35%, rgba(255,255,255,.94), transparent 62%);
+      transform: rotate(18deg);
+      opacity:.36;
+      pointer-events:none;
+    }
+
+    .h{
+      font-size: 34px;
+      font-weight: 900;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      text-shadow: 0 2px 0 rgba(0,0,0,.06);
+    }
+
+    .f1{ background: linear-gradient(180deg, var(--c1), rgba(255,255,255,.90)); }
+    .f2{ background: linear-gradient(180deg, var(--c2), rgba(255,255,255,.90)); }
+    .f3{ background: linear-gradient(180deg, var(--c3), rgba(255,255,255,.90)); }
+    .f4{ background: linear-gradient(180deg, var(--c4), rgba(255,255,255,.90)); }
+    .f5{ background: linear-gradient(180deg, var(--c5), rgba(255,255,255,.90)); }
+    .f6{ background: linear-gradient(180deg, var(--c6), rgba(255,255,255,.90)); }
+
+    .front { transform: translateZ(var(--half)); }
+    .back  { transform: rotateY(180deg) translateZ(var(--half)); }
+    .right { transform: rotateY(90deg) translateZ(var(--half)); }
+    .left  { transform: rotateY(-90deg) translateZ(var(--half)); }
+    .top   { transform: rotateX(90deg) translateZ(var(--half)); }
+    .bottom{ transform: rotateX(-90deg) translateZ(var(--half)); }
+
+    .deskShadow{
+      position:absolute;
+      width: 82%;
+      height: 16%;
+      bottom: 9%;
+      left: 9%;
+      border-radius: 999px;
+      background: radial-gradient(closest-side, rgba(11,18,32,.18), transparent 72%);
+      filter: blur(1px);
+      opacity:.55;
+      pointer-events:none;
+      z-index:0;
+    }
+
+    .face.is-active{
+      outline: 5px solid color-mix(in srgb, var(--activeAccent) 62%, white);
+      outline-offset: -5px;
+      box-shadow:
+        inset 0 0 0 1px rgba(255,255,255,.92),
+        0 22px 48px rgba(2,6,23,.22),
+        0 0 0 14px color-mix(in srgb, var(--activeColor) 74%, transparent);
+    }
+
+    /* Result */
+    .badge{
+      display:inline-flex;align-items:center;gap:8px;
+      padding:8px 12px;border-radius:999px;
+      border:1px solid rgba(11,18,32,.10);
+      background: rgba(255,255,255,.92);
+      font-size:12px;
+      color: rgba(11,18,32,.72);
+      font-weight: 700;
+      letter-spacing:.12em;
+      text-transform:uppercase;
+      width:max-content;
+    }
+    .resTitle{
+      margin:12px 0 0;
+      font-size:var(--h3);
+      font-weight: 800;
+      letter-spacing:-.01em;
+    }
+
+    .resultCard{
+      margin-top:14px;
+      border-radius: 22px;
+      border:1px solid rgba(11,18,32,.10);
+      background: linear-gradient(180deg, var(--activeColor), rgba(255,255,255,.92));
+      padding:16px;
+      box-shadow:
+        0 18px 40px rgba(2,6,23,.12),
+        0 0 0 10px color-mix(in srgb, var(--activeColor) 70%, transparent);
+    }
+    .cap{
+      font-size:11px;
+      letter-spacing:.12em;
+      text-transform:uppercase;
+      color: rgba(11,18,32,.60);
+      font-weight: 700;
+    }
+    .bigQ{
+      margin-top:10px;
+      font-size:28px;
+      font-weight: 900;
+      letter-spacing:-.01em;
+      line-height:1.12;
+    }
+    .mini{
+      margin-top:10px;
+      color: rgba(11,18,32,.76);
+      font-size:14px;
+      line-height:1.35;
+      font-weight: 600;
+    }
+    .note{
+      margin-top:12px;
+      padding:12px 14px;
+      border-radius: 18px;
+      border:1px solid rgba(11,18,32,.10);
+      background: rgba(255,255,255,.92);
+      color: rgba(11,18,32,.66);
+      font-size:13px;
+      line-height:1.45;
+    }
+    .note b{font-weight:900}
+
+    @media (max-width: 560px){
+      :root{ --cube: 310px; }
+      .scene{ width: min(720px, 96vw); }
+      .bigQ{ font-size: 24px; }
+      .h{ font-size: 30px; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="pattern"></div>
+
+  <div class="wrap">
+    <header>
+      <div class="topbar"></div>
+      <div class="head">
+        <div class="brand">
+          <div class="logo" aria-hidden="true">ED</div>
+          <div><h1>Кубик Блума</h1></div>
+        </div>
+        <div class="chips">
+          <span class="chip">Клик по кубику — бросок</span>
+          <span class="chip">6 граней</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- SCREEN 1: TEACHER -->
+    <main id="screenSetup" class="screen active">
+      <section class="card pad">
+        <h2 class="title">Настройка граней</h2>
+
+        <div class="formRow">
+          <label for="facesInput">Свойства (6 штук, через запятую)</label>
+          <input id="facesInput" placeholder="поделись, объясни, почему, придумай, назови, предложи" />
+          <div class="help">
+            Если напишешь меньше 6 — недостающие будут «—». Если больше — возьмём первые 6.
+          </div>
+        </div>
+
+        <div class="formRow">
+          <label for="noteInput">Подсказка ученику (необязательно)</label>
+          <textarea id="noteInput" placeholder="Например: «Кликни по кубику — выпадет задание»"></textarea>
+        </div>
+
+        <div class="controls">
+          <button id="btnStart" class="btn primary" type="button">Сформировать</button>
+          <button id="btnFill" class="btn" type="button">Заполнить примером</button>
+        </div>
+      </section>
+    </main>
+
+    <!-- SCREEN 2: STUDENT -->
+    <main id="screenGame" class="screen">
+      <div class="grid">
+        <section class="card">
+          <div class="pad">
+            <h2 class="title">Интерактивный кубик</h2>
+            <div class="controls">
+              <button id="btnRoll" class="btn primary" type="button">Бросить</button>
+              <button id="btnReset" class="btn" type="button">В центр</button>
+              <button id="btnEdit" class="btn" type="button">Изменить грани</button>
+            </div>
+          </div>
+
+          <div class="stage">
+            <div id="scene" class="scene" aria-label="Кубик (клик — бросок)">
+              <div class="halo"></div>
+              <div class="persp">
+                <div id="cube" class="cube" style="transform: rotateX(-16deg) rotateY(26deg);">
+                  <div class="face f1 front"  data-face="1"><div class="inner"><div class="h" id="f1">—</div></div></div>
+                  <div class="face f2 right"  data-face="2"><div class="inner"><div class="h" id="f2">—</div></div></div>
+                  <div class="face f3 back"   data-face="3"><div class="inner"><div class="h" id="f3">—</div></div></div>
+                  <div class="face f4 left"   data-face="4"><div class="inner"><div class="h" id="f4">—</div></div></div>
+                  <div class="face f5 top"    data-face="5"><div class="inner"><div class="h" id="f5">—</div></div></div>
+                  <div class="face f6 bottom" data-face="6"><div class="inner"><div class="h" id="f6">—</div></div></div>
+                </div>
+              </div>
+              <div class="deskShadow"></div>
+            </div>
+          </div>
+        </section>
+
+        <aside class="card pad">
+          <div class="badge">РЕЗУЛЬТАТ</div>
+          <div class="resTitle" id="resTitle">Сделайте бросок</div>
+
+          <div class="resultCard" id="resultCard">
+            <div class="cap">Выпало</div>
+            <div class="bigQ" id="resQ">Кликни по кубику или нажми «Бросить».</div>
+            <div class="mini" id="resMini">—</div>
+          </div>
+
+          <div class="note" id="noteBox">
+            Подсказка: <b>клик</b> по кубику — “подброс” и выпадение грани.
+          </div>
+        </aside>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    // Screen switching
+    const screenSetup = document.getElementById('screenSetup');
+    const screenGame  = document.getElementById('screenGame');
+
+    const facesInput = document.getElementById('facesInput');
+    const noteInput  = document.getElementById('noteInput');
+
+    const btnStart = document.getElementById('btnStart');
+    const btnFill  = document.getElementById('btnFill');
+
+    const btnRoll  = document.getElementById('btnRoll');
+    const btnReset = document.getElementById('btnReset');
+    const btnEdit  = document.getElementById('btnEdit');
+
+    const cube  = document.getElementById('cube');
+    const scene = document.getElementById('scene');
+
+    const resTitle = document.getElementById('resTitle');
+    const resQ     = document.getElementById('resQ');
+    const resMini  = document.getElementById('resMini');
+    const resultCard = document.getElementById('resultCard');
+    const noteBox = document.getElementById('noteBox');
+
+    const faceTextEls = [
+      document.getElementById('f1'),
+      document.getElementById('f2'),
+      document.getElementById('f3'),
+      document.getElementById('f4'),
+      document.getElementById('f5'),
+      document.getElementById('f6'),
+    ];
+    const faceEls = Array.from(document.querySelectorAll('.face'));
+
+    // Face colors/accents aligned to CSS vars
+    const FACE_THEME = [
+      {color:"var(--c1)", acc:"var(--a1)"},
+      {color:"var(--c2)", acc:"var(--a2)"},
+      {color:"var(--c3)", acc:"var(--a3)"},
+      {color:"var(--c4)", acc:"var(--a4)"},
+      {color:"var(--c5)", acc:"var(--a5)"},
+      {color:"var(--c6)", acc:"var(--a6)"},
+    ];
+
+    // Orientation mapping: 1 front, 2 right, 3 back, 4 left, 5 top, 6 bottom
+    const ORIENT = {
+      1: {x: 0,   y: 0},
+      2: {x: 0,   y: -90},
+      3: {x: 0,   y: 180},
+      4: {x: 0,   y: 90},
+      5: {x: -90, y: 0},
+      6: {x: 90,  y: 0},
+    };
+
+    let faces = ["ПОДЕЛИСЬ","ОБЪЯСНИ","ПОЧЕМУ","ПРИДУМАЙ","НАЗОВИ","ПРЕДЛОЖИ"];
+    let rolling = false;
+    let lastIndex = null;
+
+    // Cube current rotation
+    let rotX = -16, rotY = 26;
+
+    function normalizeFaces(raw){
+      const parts = raw
+        .split(/[,;\n]+/g)
+        .map(s => s.trim())
+        .filter(Boolean);
+
+      while(parts.length < 6) parts.push("—");
+      return parts.slice(0,6).map(s => s.toUpperCase());
+    }
+
+    function setThemeByIndex(i){
+      const t = FACE_THEME[i];
+      document.documentElement.style.setProperty('--activeColor', t.color);
+      document.documentElement.style.setProperty('--activeAccent', t.acc);
+      btnRoll.style.background = `linear-gradient(135deg,
+        color-mix(in srgb, ${t.acc} 92%, white),
+        color-mix(in srgb, ${t.acc} 35%, #22c55e)
+      )`;
+    }
+
+    function setActiveFace(n){
+      faceEls.forEach(el => el.classList.toggle('is-active', Number(el.dataset.face) === n));
+    }
+
+    function setRot(x,y, fast=false){
+      rotX = x; rotY = y;
+      cube.style.transitionDuration = fast ? '0ms' : '1050ms';
+      cube.style.transform = `rotateX(${rotX}deg) rotateY(${rotY}deg)`;
+      // for toss keyframes
+      cube.style.setProperty('--rx', `${rotX}deg`);
+      cube.style.setProperty('--ry', `${rotY}deg`);
+    }
+
+    function renderFaces(){
+      for(let i=0;i<6;i++){
+        faceTextEls[i].textContent = faces[i] || "—";
+      }
+    }
+
+    function showSetup(){
+      screenGame.classList.remove('active');
+      screenSetup.classList.add('active');
+    }
+
+    function showGame(){
+      screenSetup.classList.remove('active');
+      screenGame.classList.add('active');
+      renderFaces();
+
+      const note = noteInput.value.trim();
+      noteBox.innerHTML = note
+        ? note.replace(/</g,"&lt;").replace(/>/g,"&gt;")
+        : 'Подсказка: <b>клик</b> по кубику — “подброс” и выпадение грани.';
+    }
+
+    btnFill.addEventListener('click', () => {
+      facesInput.value = "поделись, объясни, почему, придумай, назови, предложи";
+      noteInput.value = "Кликни по кубику — выпадет задание.";
+    });
+
+    btnStart.addEventListener('click', () => {
+      const raw = facesInput.value.trim();
+      faces = raw ? normalizeFaces(raw) : ["ПОДЕЛИСЬ","ОБЪЯСНИ","ПОЧЕМУ","ПРИДУМАЙ","НАЗОВИ","ПРЕДЛОЖИ"];
+      showGame();
+    });
+
+    btnEdit.addEventListener('click', showSetup);
+
+    function pickIndex(){
+      let idx = Math.floor(Math.random()*6);
+      if(lastIndex !== null && idx === lastIndex) idx = (idx + 1 + Math.floor(Math.random()*5)) % 6;
+      lastIndex = idx;
+      return idx;
+    }
+
+    async function roll(){
+      if(rolling) return;
+      rolling = true;
+
+      const idx = pickIndex();
+      const n = idx + 1;
+      const label = faces[idx] || "—";
+
+      setThemeByIndex(idx);
+      setActiveFace(0);
+
+      // UI while rolling
+      resTitle.textContent = "Кубик летит…";
+      resQ.textContent = "…";
+      resMini.textContent = "—";
+
+      // Start toss animation
+      cube.classList.remove('toss');
+      void cube.offsetWidth;
+      cube.classList.add('toss');
+
+      // During toss we also spin a bit (keeps it alive)
+      const spins = 2 + Math.floor(Math.random()*2);
+      const spinX = rotX + 360*spins + (Math.random()*40 - 20);
+      const spinY = rotY + 360*spins + (Math.random()*40 - 20);
+      setRot(spinX, spinY, true);
+
+      // Wait toss end, then settle on face
+      await new Promise(r=>setTimeout(r, 820));
+      cube.classList.remove('toss');
+
+      const o = ORIENT[n];
+      // add extra turns to look physical
+      const extraX = (Math.random() > .5 ? 360 : 720);
+      const extraY = (Math.random() > .5 ? 360 : 720);
+      setRot(o.x + extraX, o.y + extraY, false);
+
+      await new Promise(r=>setTimeout(r, 520));
+
+      setActiveFace(n);
+
+      resTitle.textContent = `Выпала грань: ${label}`;
+      resQ.textContent = label;
+      resMini.textContent = `Грань ${n}`;
+
+      resultCard.style.background =
+        `linear-gradient(180deg, ${getComputedStyle(document.documentElement).getPropertyValue('--activeColor')}, rgba(255,255,255,.92))`;
+
+      rolling = false;
+    }
+
+    btnRoll.addEventListener('click', roll);
+    scene.addEventListener('click', (e)=>{
+      // чтобы клик по кнопкам не бросал
+      if(e.target.closest('button')) return;
+      roll();
+    });
+
+    btnReset.addEventListener('click', ()=>{
+      setActiveFace(0);
+      setThemeByIndex(0);
+      setRot(-16, 26, false);
+
+      resTitle.textContent = "Сделайте бросок";
+      resQ.textContent = "Кликни по кубику или нажми «Бросить».";
+      resMini.textContent = "—";
+    });
+
+    // default theme
+    setThemeByIndex(0);
+    setRot(-16, 26, false);
+  </script>
+</body>
+</html>
